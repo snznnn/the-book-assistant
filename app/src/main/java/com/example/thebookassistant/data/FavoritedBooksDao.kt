@@ -1,6 +1,7 @@
 package com.example.thebookassistant.data
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -14,5 +15,8 @@ interface FavoritedBooksDao {
 
     @Query("SELECT * FROM favorited_books")
     fun getAllFavoriteBooks(): Flow<List<FavoritedBooks>>
+
+    @Delete
+    suspend fun deleteFavoriteBook(book: FavoritedBooks)
 
 }

@@ -19,5 +19,4 @@ object DatabaseProvider {
             instance
         }
     }
-
 }
