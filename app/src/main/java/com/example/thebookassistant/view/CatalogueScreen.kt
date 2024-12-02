@@ -60,7 +60,6 @@ fun CatalogueScreen(navController: NavHostController) {
 
         var title by remember { mutableStateOf("") }
         var authorName by remember { mutableStateOf("") }
-        var key by remember { mutableStateOf("") }
         var books by remember { mutableStateOf(listOf<SearchApiResponseDoc>()) }
 
         var isLoading by remember { mutableStateOf(false) }
@@ -91,7 +90,6 @@ fun CatalogueScreen(navController: NavHostController) {
                         fetchBooks(
                             title,
                             authorName,
-                            key,
                             { fetchedBooks ->
                                 isLoading = false
                                 if (fetchedBooks.isEmpty()) {
@@ -135,9 +133,9 @@ fun CatalogueScreen(navController: NavHostController) {
     }
 }
 
-fun fetchBooks(title: String, author: String, key: String, onSuccess: (List<SearchApiResponseDoc>) -> Unit, onError: (String) -> Unit) {
+fun fetchBooks(title: String, author: String, onSuccess: (List<SearchApiResponseDoc>) -> Unit, onError: (String) -> Unit) {
     val searchApiService = RetrofitInstance.openLibrarySearchApiService
-    val serviceCall = searchApiService.search(title, author, key, 5.toString())
+    val serviceCall = searchApiService.search(title, author, 5.toString())
 
     serviceCall.enqueue(object : Callback<SearchApiResponse> {
         override fun onResponse(call: Call<SearchApiResponse>, response: Response<SearchApiResponse>) {
