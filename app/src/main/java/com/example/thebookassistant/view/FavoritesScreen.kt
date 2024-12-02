@@ -54,7 +54,7 @@ fun FavoritesScreen(navController: NavHostController) {
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(favoriteBooks) { book ->
-                        FavoriteBookItem(book = book, onDelete = { deleteFavoriteBook(favoriteBooksDao, book) }, onBookClick = { selectedBook = book })
+                        FavoriteBookItem(book = book, onDelete = { deleteFavoriteBook(favoriteBooksDao, book) })
                     }
                 }
             }
