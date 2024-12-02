@@ -14,7 +14,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 TheBookAssistantDatabase::class.java,
                 "thebookassistant_database"
-            ).build()
+            ).addMigrations(MIGRATION_1_2).build()
             INSTANCE = instance
             instance
         }

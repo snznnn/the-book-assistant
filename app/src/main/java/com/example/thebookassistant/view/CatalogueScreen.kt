@@ -27,6 +27,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,7 @@ import com.example.thebookassistant.data.FavoritedBooks
 import com.example.thebookassistant.data.FavoritedBooksDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
@@ -58,6 +60,7 @@ fun CatalogueScreen(navController: NavHostController) {
 
         var title by remember { mutableStateOf("") }
         var authorName by remember { mutableStateOf("") }
+        var key by remember { mutableStateOf("") }
         var books by remember { mutableStateOf(listOf<SearchApiResponseDoc>()) }
 
         var isLoading by remember { mutableStateOf(false) }
@@ -88,6 +91,7 @@ fun CatalogueScreen(navController: NavHostController) {
                         fetchBooks(
                             title,
                             authorName,
+                            key,
                             { fetchedBooks ->
                                 isLoading = false
                                 if (fetchedBooks.isEmpty()) {
@@ -131,9 +135,9 @@ fun CatalogueScreen(navController: NavHostController) {
     }
 }
 
-fun fetchBooks(title: String, author: String, onSuccess: (List<SearchApiResponseDoc>) -> Unit, onError: (String) -> Unit) {
+fun fetchBooks(title: String, author: String, key: String, onSuccess: (List<SearchApiResponseDoc>) -> Unit, onError: (String) -> Unit) {
     val searchApiService = RetrofitInstance.openLibrarySearchApiService
-    val serviceCall = searchApiService.search(title, author, 5.toString())
+    val serviceCall = searchApiService.search(title, author, key, 5.toString())
 
     serviceCall.enqueue(object : Callback<SearchApiResponse> {
         override fun onResponse(call: Call<SearchApiResponse>, response: Response<SearchApiResponse>) {
@@ -155,6 +159,13 @@ fun fetchBooks(title: String, author: String, onSuccess: (List<SearchApiResponse
 private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Context) {
     val db = DatabaseProvider.getDatabase(context)
     val favoritedBooksDao = db.favoritedBooksDao()
+    var favoritedKeys by remember { mutableStateOf(emptySet<String>()) }
+
+    LaunchedEffect(Unit) {
+        favoritedBooksDao.getAllFavoriteBooks().collect { favoritedBooks ->
+            favoritedKeys = favoritedBooks.map { it.key }.toSet()
+        }
+    }
 
     LazyColumn(modifier = Modifier.fillMaxWidth(0.8f)) {
         items(books) { book ->
@@ -166,20 +177,43 @@ private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Cont
                     }
                     Button(
                         onClick = {
-                            val favoriteBook = FavoritedBooks(title = book.title, authors = book.author_name.joinToString(", "))
-                            saveFavoriteBook(favoritedBooksDao, favoriteBook)
+                            if (favoritedKeys.contains(book.key)) {
+                                unfavoriteBook(favoritedBooksDao, book.key)
+                                favoritedKeys = favoritedKeys - book.key
+                            } else {
+                                favoriteBook(favoritedBooksDao, book)
+                                favoritedKeys = favoritedKeys + book.key
+                            }
                         },
                         modifier = Modifier.height(32.dp),
                         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
-                    ) { Text("Favorite", style = MaterialTheme.typography.bodySmall) }
+                    ) { Text( if (favoritedKeys.contains(book.key)) "Unfavorite"
+                        else "Favorite",
+                        style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }
     }
 }
 
-fun saveFavoriteBook(favoriteBookDao: FavoritedBooksDao, book: FavoritedBooks) {
+fun favoriteBook(favoritedBooksDao: FavoritedBooksDao, book: SearchApiResponseDoc) {
     CoroutineScope(Dispatchers.IO).launch {
-        favoriteBookDao.insertFavoriteBook(book)
+        val favoriteBook = FavoritedBooks(
+            title = book.title,
+            authors = book.author_name.joinToString(", "),
+            key = book.key
+        )
+        favoritedBooksDao.insertFavoriteBook(favoriteBook)
+    }
+}
+
+fun unfavoriteBook(favoritedBooksDao: FavoritedBooksDao, key: String) {
+    CoroutineScope(Dispatchers.IO).launch {
+        val bookToDelete = favoritedBooksDao.getAllFavoriteBooks()
+            .first()
+            .firstOrNull { it.key == key }
+        if (bookToDelete != null) {
+            favoritedBooksDao.deleteFavoriteBook(bookToDelete)
+        }
     }
 }

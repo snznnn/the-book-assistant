@@ -11,6 +11,7 @@ interface OpenLibrarySearchApiService {
     fun search(
         @Query("title") title: String,
         @Query("author") author: String,
+        @Query("key") key: String,
         @Query("limit") limit: String
     ): Call<SearchApiResponse>
 
