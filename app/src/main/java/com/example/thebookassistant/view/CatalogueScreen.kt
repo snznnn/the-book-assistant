@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -72,18 +73,45 @@ fun CatalogueScreen(navController: NavHostController) {
 
 
         Box(
-            modifier = Modifier.fillMaxSize().padding(padding).pointerInput(Unit) {
-                    detectTapGestures(onTap = { keyboardController?.hide() })}){
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { keyboardController?.hide() })
+                }) {
 
         }
-        Column(modifier = Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-          OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth(0.8f),
-                keyboardOptions = KeyboardOptions.Default, keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Title") },
+                modifier = Modifier.fillMaxWidth(0.8f),
+                maxLines = 1,
+                keyboardOptions = KeyboardOptions.Default,
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(value = authorName, onValueChange = { authorName = it }, label = { Text("Author") }, modifier = Modifier.fillMaxWidth(0.8f),
-                keyboardOptions = KeyboardOptions.Default, keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }))
+            OutlinedTextField(
+                value = authorName,
+                onValueChange = { authorName = it },
+                label = { Text("Author") },
+                modifier = Modifier.fillMaxWidth(0.8f),
+                maxLines = 1,
+                keyboardOptions = KeyboardOptions.Default,
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Button(
                     onClick = {
                         isLoading = true
@@ -133,12 +161,20 @@ fun CatalogueScreen(navController: NavHostController) {
     }
 }
 
-fun fetchBooks(title: String, author: String, onSuccess: (List<SearchApiResponseDoc>) -> Unit, onError: (String) -> Unit) {
+fun fetchBooks(
+    title: String,
+    author: String,
+    onSuccess: (List<SearchApiResponseDoc>) -> Unit,
+    onError: (String) -> Unit
+) {
     val searchApiService = RetrofitInstance.openLibrarySearchApiService
     val serviceCall = searchApiService.search(title, author, 5.toString())
 
     serviceCall.enqueue(object : Callback<SearchApiResponse> {
-        override fun onResponse(call: Call<SearchApiResponse>, response: Response<SearchApiResponse>) {
+        override fun onResponse(
+            call: Call<SearchApiResponse>,
+            response: Response<SearchApiResponse>
+        ) {
             if (response.isSuccessful) {
                 val books = response.body()?.docs ?: emptyList()
                 onSuccess(books)
@@ -167,11 +203,33 @@ private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Cont
 
     LazyColumn(modifier = Modifier.fillMaxWidth(0.8f)) {
         items(books) { book ->
-            Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), elevation = CardDefaults.cardElevation(4.dp)) {
-                Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                        Text(text = "Title: ${book.title}", style = MaterialTheme.typography.bodyMedium)
-                        Text(text = "Author(s): ${book.author_name.joinToString(", ")}", style = MaterialTheme.typography.bodySmall)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 16.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Title: ${book.title}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = "Author(s): ${book.author_name.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     Button(
                         onClick = {
@@ -183,11 +241,15 @@ private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Cont
                                 favoritedKeys = favoritedKeys + book.key
                             }
                         },
-                        modifier = Modifier.height(32.dp),
-                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp)
-                    ) { Text( if (favoritedKeys.contains(book.key)) "Unfavorite"
-                        else "Favorite",
-                        style = MaterialTheme.typography.bodySmall) }
+                        modifier = Modifier.size(80.dp, 32.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            if (favoritedKeys.contains(book.key)) "Unfavorite"
+                            else "Favorite",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
         }
