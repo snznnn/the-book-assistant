@@ -1,6 +1,5 @@
 package com.example.thebookassistant.view
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,25 +29,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.example.thebookassistant.api.RetrofitInstance
+import com.example.thebookassistant.api.library.ChatGptCompletionsApiService
 import com.example.thebookassistant.data.DatabaseProvider
 import com.example.thebookassistant.data.FavoritedBooks
 import com.example.thebookassistant.data.FavoritedBooksDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(navController: NavHostController) {
-    val db = DatabaseProvider.getDatabase(navController.context)
-    val favoriteBooksDao = db.favoritedBooksDao()
-    val favoriteBooksFlow: Flow<List<FavoritedBooks>> = db.favoritedBooksDao().getAllFavoriteBooks()
-    val favoriteBooks by favoriteBooksFlow.collectAsState(initial = emptyList())
+    val favoriteBooksDao = DatabaseProvider.getDatabase(navController.context).favoritedBooksDao()
+    val favoriteBooks by favoriteBooksDao.getAllFavoriteBooks()
+        .collectAsState(initial = emptyList())
     val selectedBooks = remember { mutableStateOf(mutableSetOf<FavoritedBooks>()) }
+    val chatGptService = RetrofitInstance.chatGptCompletionsApiService
 
     Scaffold(topBar = { TopAppBar(title = { Text("My Favorite Books") }) }) { padding ->
         Column(
@@ -66,7 +63,7 @@ fun FavoritesScreen(navController: NavHostController) {
             ) {
                 Button(onClick = {
                     if (selectedBooks.value.isNotEmpty()) {
-                        getSuggestions(selectedBooks.value)
+                        getSuggestions(selectedBooks.value, chatGptService)
                     }
                 }, enabled = selectedBooks.value.isNotEmpty()) { Text("Get Suggestions!") }
                 Button(onClick = { navController.navigate("CatalogueScreen") }) { Text("Back To Search") }
@@ -87,7 +84,8 @@ fun FavoritesScreen(navController: NavHostController) {
                                         remove(book)
                                     }
                                 }
-                            }, onDelete = {
+                            },
+                            onDelete = {
                                 deleteFavoriteBook(favoriteBooksDao, book)
                             })
                     }
@@ -97,7 +95,7 @@ fun FavoritesScreen(navController: NavHostController) {
     }
 }
 
-fun getSuggestions(selectedBooks: Set<FavoritedBooks>) {
+fun getSuggestions(selectedBooks: Set<FavoritedBooks>, chatGptService: ChatGptCompletionsApiService) {
     // Use selectedBooks for your suggestion logic
     println("Selected books for suggestions: $selectedBooks")
 }
@@ -128,9 +126,11 @@ fun FavoriteBookItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier
-                .weight(1f)
-                .padding(end = 16.dp)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
+            ) {
                 Text(
                     text = "Title: ${book.title}",
                     style = MaterialTheme.typography.bodyLarge,

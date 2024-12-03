@@ -1,6 +1,5 @@
 package com.example.thebookassistant.view
 
-import android.content.Context
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,11 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.thebookassistant.api.RetrofitInstance
+import com.example.thebookassistant.api.library.OpenLibrarySearchApiService
 import com.example.thebookassistant.api.library.model.SearchApiResponse
 import com.example.thebookassistant.api.library.model.SearchApiResponseDoc
 import com.example.thebookassistant.data.DatabaseProvider
@@ -57,6 +56,9 @@ import retrofit2.Response
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CatalogueScreen(navController: NavHostController) {
+    val favoritedBooksDao = DatabaseProvider.getDatabase(navController.context).favoritedBooksDao()
+    val searchApiService = RetrofitInstance.openLibrarySearchApiService
+
     Scaffold(topBar = { TopAppBar(title = { Text("Search in OpenLibrary") }) }) { padding ->
 
         var title by remember { mutableStateOf("") }
@@ -71,16 +73,12 @@ fun CatalogueScreen(navController: NavHostController) {
 
         val keyboardController = LocalSoftwareKeyboardController.current
 
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { keyboardController?.hide() })
-                }) {
-
-        }
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { keyboardController?.hide() })
+            }) {}
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -115,47 +113,37 @@ fun CatalogueScreen(navController: NavHostController) {
                 Button(
                     onClick = {
                         isLoading = true
-                        fetchBooks(
-                            title,
-                            authorName,
-                            { fetchedBooks ->
-                                isLoading = false
-                                if (fetchedBooks.isEmpty()) {
-                                    noResultsFound = true
-                                } else {
-                                    books = fetchedBooks
-                                }
-                            },
-                            { error ->
-                                errorMessage = error
-                                isLoading = false
+                        fetchBooks(title, authorName, searchApiService, { fetchedBooks ->
+                            if (fetchedBooks.isEmpty()) {
+                                noResultsFound = true
+                            } else {
+                                books = fetchedBooks
                             }
-                        )
-                    },
-                    enabled = isSearchEnabled
+                            isLoading = false
+                        }, { error ->
+                            errorMessage = error
+                            isLoading = false
+                        })
+                    }, enabled = isSearchEnabled
                 ) { Text(if (isLoading) "Searching..." else "Search") }
                 Button(onClick = { navController.navigate("InventoryScreen") }) { Text("Favorites") }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            CatalogueScreenList(books, LocalContext.current)
+            CatalogueScreenList(books, favoritedBooksDao)
 
             if (errorMessage != null) {
-                AlertDialog(
-                    onDismissRequest = { errorMessage = null },
+                AlertDialog(onDismissRequest = { errorMessage = null },
                     confirmButton = { Button(onClick = { errorMessage = null }) { Text("OK") } },
                     title = { Text("Something went wrong!") },
-                    text = { Text(errorMessage ?: "Unknown error occurred!") }
-                )
+                    text = { Text(errorMessage ?: "Unknown error occurred!") })
             }
 
             if (noResultsFound) {
-                AlertDialog(
-                    onDismissRequest = { noResultsFound = false },
+                AlertDialog(onDismissRequest = { noResultsFound = false },
                     confirmButton = { Button(onClick = { noResultsFound = false }) { Text("OK") } },
                     title = { Text("404") },
-                    text = { Text("No results found!") }
-                )
+                    text = { Text("No results found!") })
             }
         }
     }
@@ -164,16 +152,15 @@ fun CatalogueScreen(navController: NavHostController) {
 fun fetchBooks(
     title: String,
     author: String,
+    searchApiService: OpenLibrarySearchApiService,
     onSuccess: (List<SearchApiResponseDoc>) -> Unit,
     onError: (String) -> Unit
 ) {
-    val searchApiService = RetrofitInstance.openLibrarySearchApiService
     val serviceCall = searchApiService.search(title, author, 5.toString())
 
     serviceCall.enqueue(object : Callback<SearchApiResponse> {
         override fun onResponse(
-            call: Call<SearchApiResponse>,
-            response: Response<SearchApiResponse>
+            call: Call<SearchApiResponse>, response: Response<SearchApiResponse>
         ) {
             if (response.isSuccessful) {
                 val books = response.body()?.docs ?: emptyList()
@@ -190,9 +177,9 @@ fun fetchBooks(
 }
 
 @Composable
-private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Context) {
-    val db = DatabaseProvider.getDatabase(context)
-    val favoritedBooksDao = db.favoritedBooksDao()
+private fun CatalogueScreenList(
+    books: List<SearchApiResponseDoc>, favoritedBooksDao: FavoritedBooksDao
+) {
     var favoritedKeys by remember { mutableStateOf(emptySet<String>()) }
 
     LaunchedEffect(Unit) {
@@ -246,8 +233,7 @@ private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Cont
                     ) {
                         Text(
                             if (favoritedKeys.contains(book.key)) "Unfavorite"
-                            else "Favorite",
-                            style = MaterialTheme.typography.bodySmall
+                            else "Favorite", style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
@@ -259,9 +245,7 @@ private fun CatalogueScreenList(books: List<SearchApiResponseDoc>, context: Cont
 fun favoriteBook(favoritedBooksDao: FavoritedBooksDao, book: SearchApiResponseDoc) {
     CoroutineScope(Dispatchers.IO).launch {
         val favoriteBook = FavoritedBooks(
-            title = book.title,
-            authors = book.author_name.joinToString(", "),
-            key = book.key
+            title = book.title, authors = book.author_name.joinToString(", "), key = book.key
         )
         favoritedBooksDao.insertFavoriteBook(favoriteBook)
     }
@@ -269,9 +253,9 @@ fun favoriteBook(favoritedBooksDao: FavoritedBooksDao, book: SearchApiResponseDo
 
 fun unfavoriteBook(favoritedBooksDao: FavoritedBooksDao, key: String) {
     CoroutineScope(Dispatchers.IO).launch {
-        val bookToDelete = favoritedBooksDao.getAllFavoriteBooks()
-            .first()
-            .firstOrNull { it.key == key }
+        val bookToDelete =
+            favoritedBooksDao.getAllFavoriteBooks().first().firstOrNull { it.key == key }
+        // TÖDÖ findByKey
         if (bookToDelete != null) {
             favoritedBooksDao.deleteFavoriteBook(bookToDelete)
         }
