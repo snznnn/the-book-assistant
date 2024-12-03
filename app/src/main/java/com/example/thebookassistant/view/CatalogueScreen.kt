@@ -253,11 +253,6 @@ fun favoriteBook(favoritedBooksDao: FavoritedBooksDao, book: SearchApiResponseDo
 
 fun unfavoriteBook(favoritedBooksDao: FavoritedBooksDao, key: String) {
     CoroutineScope(Dispatchers.IO).launch {
-        val bookToDelete =
-            favoritedBooksDao.getAllFavoriteBooks().first().firstOrNull { it.key == key }
-        // TÖDÖ findByKey
-        if (bookToDelete != null) {
-            favoritedBooksDao.deleteFavoriteBook(bookToDelete)
-        }
+        favoritedBooksDao.deleteFavoriteBookByKey(key)
     }
 }

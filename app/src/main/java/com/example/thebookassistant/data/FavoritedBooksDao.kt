@@ -19,4 +19,7 @@ interface FavoritedBooksDao {
     @Delete
     suspend fun deleteFavoriteBook(book: FavoritedBooks)
 
+    @Query("DELETE FROM favorited_books WHERE `key` = :key")
+    suspend fun deleteFavoriteBookByKey(key: String)
+
 }
