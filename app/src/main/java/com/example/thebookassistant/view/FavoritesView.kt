@@ -1,13 +1,13 @@
 package com.example.thebookassistant.view
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,7 +17,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,35 +32,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.example.thebookassistant.BuildConfig
-import com.example.thebookassistant.api.RetrofitInstance
-import com.example.thebookassistant.api.chatgpt.ChatGptCompletionsApiService
-import com.example.thebookassistant.api.chatgpt.model.ChatGptApiRequest
-import com.example.thebookassistant.api.chatgpt.model.ChatGptApiRequestMessage
-import com.example.thebookassistant.api.chatgpt.model.ChatGptApiResponse
-import com.example.thebookassistant.data.DatabaseProvider
 import com.example.thebookassistant.data.entity.FavoritedBooks
-import com.example.thebookassistant.data.dao.FavoritedBooksDao
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.example.thebookassistant.view.model.FavoritesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoritesView(navController: NavHostController) {
-    val favoriteBooksDao = DatabaseProvider.getDatabase(navController.context).favoritedBooksDao()
-    val favoriteBooks by favoriteBooksDao.getAllFavoriteBooks()
-        .collectAsState(initial = emptyList())
-    val selectedBooks = remember { mutableStateOf(mutableSetOf<FavoritedBooks>()) }
+fun FavoritesView(navController: NavHostController, viewModel: FavoritesViewModel) {
 
-    val chatGptService = RetrofitInstance.chatGptCompletionsApiService
-    val serviceResponse = remember { mutableStateOf("No suggestions yet..") }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val showDialog = remember { mutableStateOf(false) }
+    val favoriteBooks by viewModel.favoriteBooks.collectAsState(initial = emptyList())
+    var selectedBooks by remember { mutableStateOf(setOf<FavoritedBooks>()) }
+
+    val serviceResponse by viewModel.serviceResponse.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val showDialog by viewModel.showDialog.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     Scaffold(topBar = { TopAppBar(title = { Text("My Favorite Books") }) }) { padding ->
         Column(
@@ -76,19 +60,8 @@ fun FavoritesView(navController: NavHostController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
-                    onClick = {
-                        if (selectedBooks.value.isNotEmpty()) {
-                            isLoading = true
-                            getSuggestions(selectedBooks.value, chatGptService, { result ->
-                                serviceResponse.value = result
-                                isLoading = false
-                                showDialog.value = true
-                            }, { error ->
-                                errorMessage = error
-                                isLoading = false
-                            })
-                        }
-                    }, enabled = selectedBooks.value.isNotEmpty() && !isLoading
+                    onClick = { viewModel.getSuggestions(selectedBooks) },
+                    enabled = selectedBooks.isNotEmpty() && !isLoading
                 ) {
                     Text(if (isLoading) "Loading..." else "Get Suggestions!")
                 }
@@ -98,9 +71,13 @@ fun FavoritesView(navController: NavHostController) {
             }
 
             if (errorMessage != null) {
-                AlertDialog(onDismissRequest = { errorMessage = null },
-                    confirmButton = { Button(onClick = { errorMessage = null }) { Text("OK") } },
-                    title = { Text("Something went wrong!") },
+                AlertDialog(onDismissRequest = { viewModel.clearErrorMessage() },
+                    confirmButton = {
+                        Button(onClick = { viewModel.clearErrorMessage() }) {
+                            Text("OK")
+                        }
+                    },
+                    title = { Text("Error") },
                     text = { Text(errorMessage ?: "Unknown error occurred!") })
             }
 
@@ -110,75 +87,23 @@ fun FavoritesView(navController: NavHostController) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(favoriteBooks) { book ->
                         FavoriteBookItem(book = book,
-                            isSelected = selectedBooks.value.contains(book),
+                            isSelected = selectedBooks.contains(book),
                             onSelectionChange = { isSelected ->
-                                selectedBooks.value = selectedBooks.value.toMutableSet().apply {
-                                    if (isSelected) {
-                                        add(book)
-                                    } else {
-                                        remove(book)
-                                    }
+                                selectedBooks = if (isSelected) {
+                                    selectedBooks + book
+                                } else {
+                                    selectedBooks - book
                                 }
                             },
-                            onDelete = {
-                                deleteFavoriteBook(favoriteBooksDao, book)
-                            })
+                            onDelete = { viewModel.deleteFavoriteBook(book) })
                     }
                 }
             }
         }
     }
 
-    if (showDialog.value) {
-        ResponseDialog(serviceResponse.value, onDismiss = { showDialog.value = false })
-    }
-}
-
-fun getSuggestions(
-    selectedBooks: Set<FavoritedBooks>,
-    chatGptService: ChatGptCompletionsApiService,
-    onSuccess: (String) -> Unit,
-    onError: (String) -> Unit
-) {
-    val booksInput = selectedBooks.joinToString(" | ") { "${it.title} by ${it.authors}" }
-    val chatGptRequest = ChatGptApiRequest(
-        model = "gpt-4o-mini", messages = listOf(
-            ChatGptApiRequestMessage(
-                role = "user", content = """
-        Please make 5 book suggestions including short descriptions based on the following inputs: $booksInput
-    """.trimIndent()
-            )
-        )
-    )
-
-    val apiKey = BuildConfig.CHATGPT_API_KEY
-    val call = chatGptService.completions(
-        "Bearer $apiKey", chatGptRequest
-    )
-
-    call.enqueue(object : Callback<ChatGptApiResponse> {
-        override fun onResponse(
-            call: Call<ChatGptApiResponse>, response: Response<ChatGptApiResponse>
-        ) {
-            if (response.isSuccessful) {
-                val reply =
-                    response.body()?.choices?.firstOrNull()?.message?.content ?: "No response."
-                onSuccess(reply)
-            } else {
-                onError("Error: ${response.code()} ${response.message()}")
-            }
-        }
-
-        override fun onFailure(call: Call<ChatGptApiResponse>, t: Throwable) {
-            onError("Failure: ${t.message}")
-        }
-    })
-
-}
-
-fun deleteFavoriteBook(favoriteBookDao: FavoritedBooksDao, book: FavoritedBooks) {
-    CoroutineScope(Dispatchers.IO).launch {
-        favoriteBookDao.deleteFavoriteBook(book)
+    if (showDialog) {
+        ResponseDialog(responseText = serviceResponse, onDismiss = { viewModel.closeDialog() })
     }
 }
 
@@ -203,39 +128,19 @@ fun FavoriteBookItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 16.dp)
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = "Title: ${book.title}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Author(s): ${book.authors}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Text(text = "Title: ${book.title}")
+                Text(text = "Author(s): ${book.authors}")
             }
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = onSelectionChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = MaterialTheme.colorScheme.onSurface,
-                    checkmarkColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .size(if (isSelected) 38.dp else 36.dp)
-                    .padding(end = 8.dp)
+                modifier = Modifier.padding(end = 8.dp)
             )
             Button(
                 onClick = onDelete,
-                modifier = Modifier
-                    .size(36.dp)
-                    .padding(4.dp),
+                modifier = Modifier.size(36.dp),
                 contentPadding = PaddingValues(0.dp),
                 shape = MaterialTheme.shapes.small
             ) {
@@ -256,8 +161,10 @@ fun ResponseDialog(responseText: String, onDismiss: () -> Unit) {
             Text("Close")
         }
     }, title = { Text("Suggestions by ChatGPT") }, text = {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxHeight(0.6f)
+            ) {
                 item {
                     Text(
                         text = responseText,
