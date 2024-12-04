@@ -15,6 +15,7 @@ import com.example.thebookassistant.data.DatabaseProvider
 import com.example.thebookassistant.view.CatalogueView
 import com.example.thebookassistant.ui.theme.TheBookAssistantTheme
 import com.example.thebookassistant.view.FavoritesView
+import com.example.thebookassistant.view.model.CatalogueViewModel
 import com.example.thebookassistant.view.model.FavoritesViewModel
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +37,12 @@ fun TheBookAssistant() {
     val navController = rememberNavController()
 
     val context = LocalContext.current
+    val catalogueViewModel: CatalogueViewModel = viewModel {
+        CatalogueViewModel(
+            DatabaseProvider.getDatabase(context).favoritedBooksDao(),
+            RetrofitInstance.openLibrarySearchApiService
+        )
+    }
     val favoritesViewModel: FavoritesViewModel = viewModel {
         FavoritesViewModel(
             DatabaseProvider.getDatabase(context).favoritedBooksDao(),
@@ -44,7 +51,7 @@ fun TheBookAssistant() {
     }
 
     NavHost(navController = navController, startDestination = "CatalogueView") {
-        composable("CatalogueView") { CatalogueView(navController) }
+        composable("CatalogueView") { CatalogueView(navController, catalogueViewModel) }
         composable("FavoritesView") { FavoritesView(navController, favoritesViewModel) }
     }
 }

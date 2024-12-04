@@ -43,9 +43,11 @@ fun FavoritesView(navController: NavHostController, viewModel: FavoritesViewMode
     var selectedBooks by remember { mutableStateOf(setOf<FavoritedBooks>()) }
 
     val serviceResponse by viewModel.serviceResponse.collectAsState()
+
     val isLoading by viewModel.isLoading.collectAsState()
-    val showDialog by viewModel.showDialog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val showDialog by viewModel.showDialog.collectAsState()
 
     Scaffold(topBar = { TopAppBar(title = { Text("My Favorite Books") }) }) { padding ->
         Column(
@@ -145,7 +147,7 @@ fun FavoriteBookItem(
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
-                    "X",
+                    "x",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.align(Alignment.CenterVertically)
                 )
