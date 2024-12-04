@@ -1,7 +1,7 @@
 package com.example.thebookassistant.api
 
-import com.example.thebookassistant.api.library.ChatGptCompletionsApiService
-import com.example.thebookassistant.api.library.OpenLibrarySearchApiService
+import com.example.thebookassistant.api.chatgpt.ChatGptCompletionsApiService
+import com.example.thebookassistant.api.openlibrary.OpenLibrarySearchApiService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 

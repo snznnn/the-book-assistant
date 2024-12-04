@@ -1,6 +1,6 @@
-package com.example.thebookassistant.api.library
+package com.example.thebookassistant.api.openlibrary
 
-import com.example.thebookassistant.api.library.model.SearchApiResponse
+import com.example.thebookassistant.api.openlibrary.model.SearchApiResponse
 import retrofit2.Call
 import retrofit2.http.GET
 import retrofit2.http.Query

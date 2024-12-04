@@ -2,6 +2,7 @@ package com.example.thebookassistant.data
 
 import android.content.Context
 import androidx.room.Room
+import com.example.thebookassistant.data.entity.MIGRATION_1_2
 
 object DatabaseProvider {
 
@@ -19,4 +20,5 @@ object DatabaseProvider {
             instance
         }
     }
+
 }

@@ -1,4 +1,4 @@
-package com.example.thebookassistant.data
+package com.example.thebookassistant.data.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -8,8 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Entity(tableName = "favorited_books")
 data class FavoritedBooks(
 
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
 
     val title: String,
 

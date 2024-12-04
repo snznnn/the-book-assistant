@@ -35,13 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.thebookassistant.BuildConfig
 import com.example.thebookassistant.api.RetrofitInstance
-import com.example.thebookassistant.api.library.ChatGptCompletionsApiService
-import com.example.thebookassistant.api.library.model.ChatGptApiRequest
-import com.example.thebookassistant.api.library.model.ChatGptApiRequestMessage
-import com.example.thebookassistant.api.library.model.ChatGptApiResponse
+import com.example.thebookassistant.api.chatgpt.ChatGptCompletionsApiService
+import com.example.thebookassistant.api.chatgpt.model.ChatGptApiRequest
+import com.example.thebookassistant.api.chatgpt.model.ChatGptApiRequestMessage
+import com.example.thebookassistant.api.chatgpt.model.ChatGptApiResponse
 import com.example.thebookassistant.data.DatabaseProvider
-import com.example.thebookassistant.data.FavoritedBooks
-import com.example.thebookassistant.data.FavoritedBooksDao
+import com.example.thebookassistant.data.entity.FavoritedBooks
+import com.example.thebookassistant.data.dao.FavoritedBooksDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,18 +51,16 @@ import retrofit2.Response
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FavoritesScreen(navController: NavHostController) {
+fun FavoritesView(navController: NavHostController) {
     val favoriteBooksDao = DatabaseProvider.getDatabase(navController.context).favoritedBooksDao()
     val favoriteBooks by favoriteBooksDao.getAllFavoriteBooks()
         .collectAsState(initial = emptyList())
-
     val selectedBooks = remember { mutableStateOf(mutableSetOf<FavoritedBooks>()) }
-    val chatGptService = RetrofitInstance.chatGptCompletionsApiService
-    var isLoading by remember { mutableStateOf(false) }
-    val serviceResponse = remember { mutableStateOf("No suggestions yet..") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // State for showing the dialog
+    val chatGptService = RetrofitInstance.chatGptCompletionsApiService
+    val serviceResponse = remember { mutableStateOf("No suggestions yet..") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val showDialog = remember { mutableStateOf(false) }
 
     Scaffold(topBar = { TopAppBar(title = { Text("My Favorite Books") }) }) { padding ->
@@ -84,18 +82,17 @@ fun FavoritesScreen(navController: NavHostController) {
                             getSuggestions(selectedBooks.value, chatGptService, { result ->
                                 serviceResponse.value = result
                                 isLoading = false
-                                showDialog.value = true // Show dialog after receiving response
+                                showDialog.value = true
                             }, { error ->
                                 errorMessage = error
                                 isLoading = false
                             })
                         }
-                    },
-                    enabled = selectedBooks.value.isNotEmpty() && !isLoading
+                    }, enabled = selectedBooks.value.isNotEmpty() && !isLoading
                 ) {
                     Text(if (isLoading) "Loading..." else "Get Suggestions!")
                 }
-                Button(onClick = { navController.navigate("CatalogueScreen") }) {
+                Button(onClick = { navController.navigate("CatalogueView") }) {
                     Text("Back To Search")
                 }
             }
@@ -132,7 +129,6 @@ fun FavoritesScreen(navController: NavHostController) {
         }
     }
 
-    // Show the dialog when API response is ready
     if (showDialog.value) {
         ResponseDialog(serviceResponse.value, onDismiss = { showDialog.value = false })
     }
@@ -157,8 +153,7 @@ fun getSuggestions(
 
     val apiKey = BuildConfig.CHATGPT_API_KEY
     val call = chatGptService.completions(
-        "Bearer $apiKey",
-        chatGptRequest
+        "Bearer $apiKey", chatGptRequest
     )
 
     call.enqueue(object : Callback<ChatGptApiResponse> {
@@ -256,26 +251,21 @@ fun FavoriteBookItem(
 
 @Composable
 fun ResponseDialog(responseText: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = { onDismiss() },
-        confirmButton = {
-            Button(onClick = { onDismiss() }) {
-                Text("Close")
-            }
-        },
-        title = { Text("Suggestions by ChatGPT") },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    item {
-                        Text(
-                            text = responseText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(8.dp)
-                        )
-                    }
+    AlertDialog(onDismissRequest = { onDismiss() }, confirmButton = {
+        Button(onClick = { onDismiss() }) {
+            Text("Close")
+        }
+    }, title = { Text("Suggestions by ChatGPT") }, text = {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                item {
+                    Text(
+                        text = responseText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(8.dp)
+                    )
                 }
             }
         }
-    )
+    })
 }

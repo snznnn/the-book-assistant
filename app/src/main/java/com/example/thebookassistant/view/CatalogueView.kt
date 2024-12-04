@@ -39,15 +39,14 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.thebookassistant.api.RetrofitInstance
-import com.example.thebookassistant.api.library.OpenLibrarySearchApiService
-import com.example.thebookassistant.api.library.model.SearchApiResponse
-import com.example.thebookassistant.api.library.model.SearchApiResponseDoc
+import com.example.thebookassistant.api.openlibrary.OpenLibrarySearchApiService
+import com.example.thebookassistant.api.openlibrary.model.SearchApiResponse
+import com.example.thebookassistant.api.openlibrary.model.SearchApiResponseDoc
 import com.example.thebookassistant.data.DatabaseProvider
-import com.example.thebookassistant.data.FavoritedBooks
-import com.example.thebookassistant.data.FavoritedBooksDao
+import com.example.thebookassistant.data.entity.FavoritedBooks
+import com.example.thebookassistant.data.dao.FavoritedBooksDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
@@ -55,7 +54,7 @@ import retrofit2.Response
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CatalogueScreen(navController: NavHostController) {
+fun CatalogueView(navController: NavHostController) {
     val favoritedBooksDao = DatabaseProvider.getDatabase(navController.context).favoritedBooksDao()
     val searchApiService = RetrofitInstance.openLibrarySearchApiService
 
@@ -86,8 +85,7 @@ fun CatalogueScreen(navController: NavHostController) {
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            OutlinedTextField(
-                value = title,
+            OutlinedTextField(value = title,
                 onValueChange = { title = it },
                 label = { Text("Title") },
                 modifier = Modifier.fillMaxWidth(0.8f),
@@ -96,8 +94,7 @@ fun CatalogueScreen(navController: NavHostController) {
                 keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() })
             )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = authorName,
+            OutlinedTextField(value = authorName,
                 onValueChange = { authorName = it },
                 label = { Text("Author") },
                 modifier = Modifier.fillMaxWidth(0.8f),
@@ -126,11 +123,11 @@ fun CatalogueScreen(navController: NavHostController) {
                         })
                     }, enabled = isSearchEnabled
                 ) { Text(if (isLoading) "Searching..." else "Search") }
-                Button(onClick = { navController.navigate("InventoryScreen") }) { Text("Favorites") }
+                Button(onClick = { navController.navigate("FavoritesView") }) { Text("Favorites") }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            CatalogueScreenList(books, favoritedBooksDao)
+            CatalogueViewItemList(books, favoritedBooksDao)
 
             if (errorMessage != null) {
                 AlertDialog(onDismissRequest = { errorMessage = null },
@@ -177,7 +174,7 @@ fun fetchBooks(
 }
 
 @Composable
-private fun CatalogueScreenList(
+private fun CatalogueViewItemList(
     books: List<SearchApiResponseDoc>, favoritedBooksDao: FavoritedBooksDao
 ) {
     var favoritedKeys by remember { mutableStateOf(emptySet<String>()) }

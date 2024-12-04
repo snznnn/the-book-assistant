@@ -1,4 +1,4 @@
-package com.example.thebookassistant.api.library.model
+package com.example.thebookassistant.api.chatgpt.model
 
 data class ChatGptApiRequest(
 
