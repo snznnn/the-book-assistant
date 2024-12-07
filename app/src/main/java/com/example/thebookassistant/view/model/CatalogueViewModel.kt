@@ -54,6 +54,7 @@ class CatalogueViewModel(
                     val fetchedBooks = response.body()?.docs.orEmpty()
                     if (fetchedBooks.isEmpty()) {
                         noResultsFound.value = true
+                        books.value = emptyList()
                     } else {
                         books.value = fetchedBooks
                     }

@@ -40,13 +40,13 @@ fun TheBookAssistant() {
     val catalogueViewModel: CatalogueViewModel = viewModel {
         CatalogueViewModel(
             DatabaseProvider.getDatabase(context).favoritedBooksDao(),
-            RetrofitInstance.openLibrarySearchApiService
+            RetrofitInstance.provideOpenLibrarySearchApiService(context)
         )
     }
     val favoritesViewModel: FavoritesViewModel = viewModel {
         FavoritesViewModel(
             DatabaseProvider.getDatabase(context).favoritedBooksDao(),
-            RetrofitInstance.chatGptCompletionsApiService
+            RetrofitInstance.provideChatGptCompletionsApiService(context)
         )
     }
 
